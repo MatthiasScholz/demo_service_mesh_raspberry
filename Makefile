@@ -2,10 +2,16 @@ device_id := "TODO"
 
 setup:
 	brew install balena-cli
+	brew install --cask balenaetcher
 
 scan:
 	@echo "INFO :: Scanning local network for devices"
 	balena scan
+
+
+push-emulate:
+	@echo "INFO :: Emulate push and locally"
+	balena push cluster --emulated
 
 push:
 	@echo "INFO :: Pushing changes to the device: $(device_id)"

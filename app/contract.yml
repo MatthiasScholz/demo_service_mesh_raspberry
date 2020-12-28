@@ -1,0 +1,6 @@
+type: "sw.container"
+slug: "enforce-supervisor"
+name: "Enforce supervisor"
+requires:
+  - type: "sw.supervisor"
+    version: ">=10.6.17"

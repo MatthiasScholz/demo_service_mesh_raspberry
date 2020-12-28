@@ -1,0 +1,6 @@
+# Most probably this should used: 'raspberrypi4-64'
+FROM balenalib/%%BALENA_MACHINE_NAME%%-golang
+
+RUN ["echo", "Hello Balena - Build"]
+
+CMD ["echo", "Hallo Balena - Run"]

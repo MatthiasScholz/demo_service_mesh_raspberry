@@ -1,0 +1,7 @@
+version: '2'
+services:
+  app:
+    build: ./app
+    expose:
+      - "80"
+    privileged: true
