@@ -1,0 +1,6 @@
+[submodule "app/pi-workshop-rs"]
+	path = app/pi-workshop-rs
+	url = https://github.com/thejpster/pi-workshop-rs
+[submodule "app/rtimul"]
+	path = app/rtimul
+	url = https://github.com/RPi-Distro/RTIMULib.git

@@ -1,6 +1,20 @@
 # Most probably this should used: 'raspberrypi4-64'
-FROM balenalib/%%BALENA_MACHINE_NAME%%-golang
+FROM balenalib/%%BALENA_MACHINE_NAME%%-alpine:edge-build
 
-RUN ["echo", "Hello Balena - Build"]
+RUN apk --update-cache add cmake python3 python3-dev py3-pip && rm -rf /var/cache/apk/*
+RUN python3 --version
 
-CMD ["echo", "Hallo Balena - Run"]
+COPY ["rtimul", "/opt/lib"]
+WORKDIR /opt/lib
+RUN cmake RTIMULib
+RUN make
+RUN make install
+
+WORKDIR /opt/lib/Linux/python
+RUN python3 setup.py build
+RUN python3 setup.py install
+
+RUN python3 -m pip install sense-hat
+
+COPY demo.py /opt/app.py
+CMD ["python3", "/opt/app.py"]
