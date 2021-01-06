@@ -5,3 +5,13 @@ services:
     expose:
       - "80"
     privileged: true
+  consul:
+    #image: consul:1.9.1
+    build: ./consul
+    network_mode: host
+    expose:
+      - "8301"
+      - "8302"
+      - "8500"
+      - "8600"
+    restart: always
