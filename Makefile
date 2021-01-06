@@ -1,21 +1,20 @@
-device_id := "TODO"
+device_id := 94af6c0
 
-setup:
-	brew install balena-cli
-	brew install --cask balenaetcher
-
-scan:
-	@echo "INFO :: Scanning local network for devices"
-	balena scan
-
+build:
+	@echo "INFO :: Building the application"
+	balena build
 
 push-emulate:
 	@echo "INFO :: Emulate push and locally"
 	balena push cluster --emulated
 
-push:
+live:
 	@echo "INFO :: Pushing changes to the device: $(device_id)"
 	balena push $(device_id).local --detached
+
+push:
+	@echo "INFO :: Pushing changes to the device: $(device_id)"
+	balena push $(device_id).local --nolive --debug
 
 logs:
 	@echo "INFO :: Getting log data from the device: $(device_id)"
