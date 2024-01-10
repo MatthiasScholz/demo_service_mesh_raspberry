@@ -5,9 +5,17 @@ services:
     expose:
       - "80"
     privileged: true
+  socat:
+    build: ./socat
+    network_mode: host
+    expose:
+      - "8181"
+      - "9191"
+      - "21000"
+    command: socat -v tcp-l:8181,fork exec:"/bin/cat"
   consul:
-    #image: consul:1.9.1
-    build: ./consul
+    image: consul:1.9.1
+    #build: ./consul
     network_mode: host
     expose:
       - "8301"
@@ -15,6 +23,11 @@ services:
       - "8500"
       - "8600"
     restart: always
+  envoy:
+    image: envoyproxy/envoy:v1.16.2
+    network_mode: host
+    expose:
+      - "10000"
   nomad:
     build: ./nomad
     network_mode: host

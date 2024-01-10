@@ -1,0 +1,92 @@
+# Most probably this should used: 'raspberrypi4-64'
+FROM balenalib/%%BALENA_MACHINE_NAME%%-alpine:edge-build
+
+# https://github.com/sgerrand/alpine-pkg-glibc
+ARG GLIBC_VERSION=2.32-r0
+RUN  wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
+RUN  wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VERSION}/glibc-${GLIBC_VERSION}.apk
+RUN  apk add glibc-${GLIBC_VERSION}.apk
+
+# This is the release of Nomad to pull in.
+ARG NOMAD_VERSION=1.0.1
+LABEL nomad.version=$NOMAD_VERSION
+
+# This is the location of the releases.
+ENV HASHICORP_RELEASES=https://releases.hashicorp.com
+
+# Create a nomad user and group first so the IDs get set the same way, even as
+# the rest of this may change over time.
+RUN addgroup nomad && \
+  adduser -S -G nomad nomad
+
+# Set up certificates, base tools, and Nomad.
+# libc6-compat is needed to symlink the shared libraries for ARM builds
+RUN set -eux && \
+    apk add --no-cache ca-certificates curl dumb-init gnupg libcap openssl su-exec iputils jq libc6-compat && \
+    gpg --keyserver pool.sks-keyservers.net --recv-keys 91A6E7F85D05C65630BEF18951852D87348FFC4C && \
+    mkdir -p /tmp/build && \
+    cd /tmp/build && \
+    apkArch="$(apk --print-arch)" && \
+    case "${apkArch}" in \
+        aarch64) nomadArch='arm64' ;; \
+        armhf) nomadArch='armhfv6' ;; \
+        x86) nomadArch='386' ;; \
+        x86_64) nomadArch='amd64' ;; \
+        *) echo >&2 "error: unsupported architecture: ${apkArch} (see ${HASHICORP_RELEASES}/nomad/${NOMAD_VERSION}/)" && exit 1 ;; \
+    esac && \
+    wget ${HASHICORP_RELEASES}/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_${nomadArch}.zip && \
+    wget ${HASHICORP_RELEASES}/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS && \
+    wget ${HASHICORP_RELEASES}/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS.sig && \
+    gpg --batch --verify nomad_${NOMAD_VERSION}_SHA256SUMS.sig nomad_${NOMAD_VERSION}_SHA256SUMS && \
+    grep nomad_${NOMAD_VERSION}_linux_${nomadArch}.zip nomad_${NOMAD_VERSION}_SHA256SUMS | sha256sum -c && \
+    unzip -d /bin nomad_${NOMAD_VERSION}_linux_${nomadArch}.zip && \
+    cd /tmp && \
+    gpgconf --kill all
+# TODO Add:     rm -rf /tmp/build && \ apk del gnupg openssl && \ rm -rf /root/.gnupg
+
+RUN objdump -T  /bin/nomad  | grep -o "nvml.*" | sort -u | sed 's/\(nvml.*\)/extern int \1(){ return 1; }/g' > nvml.c
+RUN gcc -c nvml.c -fpic
+RUN gcc -shared -o nvml.so nvml.o
+RUN rm nvml.o nvml.c
+
+# tiny smoke test to ensure the binary we downloaded runs
+RUN LD_PRELOAD=./nvml.so nomad version
+
+# The /nomad/data dir is used by Nomad to store state. The agent will be started
+# with /nomad/config as the configuration directory so you can add additional
+# config files in that location.
+RUN mkdir -p /nomad/data && \
+    mkdir -p /nomad/config && \
+    chown -R nomad:nomad /nomad
+
+# set up nsswitch.conf for Go's "netgo" implementation which is used by Nomad,
+# otherwise DNS supercedes the container's hosts file, which we don't want.
+# RUN test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
+
+# TODO Expose the nomad data directory as a volume since there's mutable state in there.
+VOLUME /nomad/data
+
+# FIXME Server RPC is used for communication between Nomad clients and servers for internal
+# request forwarding.
+EXPOSE 8300
+
+# FIXME Serf LAN and WAN (WAN is used only by Nomad servers) are used for gossip between
+# Nomad agents. LAN is within the datacenter and WAN is between just the Nomad
+# servers in all datacenters.
+EXPOSE 8301 8301/udp 8302 8302/udp
+
+# HTTP and DNS (both TCP and UDP) are the primary interfaces that applications
+# use to interact with Nomad.
+EXPOSE 4646 4647 4648 4648/udp
+
+
+# Nomad doesn't need root privileges so we run it as the nomad user from the
+# entry point script. The entry point script also uses dumb-init as the top-level
+# process to reap any zombie processes created by Nomad sub-processes.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# By default you'll get an insecure single-node development server that stores
+# everything in RAM, exposes a web UI and HTTP endpoints, and bootstraps itself.
+# Don't use this configuration for production.
+CMD ["agent", "-dev", "-client", "0.0.0.0"]

@@ -85,6 +85,9 @@ def initSense():
                          gyro_enabled=False,
                          accel_enabled=True)
 
+    # Rotate the screen to put the power connector to the top
+    sense.set_rotation(180)
+
     return sense
 
 # MAIN

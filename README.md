@@ -24,8 +24,6 @@ like you would in a vanilla Linux environment.
 
 Multicontainer applications do not run containers in privileged mode by default.
 
-
-
 ## Technology
 
 - [Consul](https://www.consul.io)

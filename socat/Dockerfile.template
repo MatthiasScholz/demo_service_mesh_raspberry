@@ -1,0 +1,8 @@
+# Most probably this should used: 'raspberrypi4-64'
+FROM balenalib/%%BALENA_MACHINE_NAME%%-alpine:edge-build
+
+RUN apk --update-cache add socat
+
+EXPOSE 8181
+
+CMD socat -v tcp-l:8181,fork exec:"/bin/cat"
